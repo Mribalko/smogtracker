@@ -1,0 +1,5 @@
+{
+    "env": "local",
+    "storage_path": "./storage/trackerinfo.db",
+    "http_timeout": "1s" 
+}

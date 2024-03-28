@@ -1,0 +1,50 @@
+
+https://armaqi.org/api/waqi/list
+
+sources
+id | name | url
+1 | armaqi | https://armaqi.org/api/waqi/list 
+
+trackers
+
+id | source_id | description | lat | lng | 
+{
+  "stations": [
+    {
+      "id": 76921,
+      "title": "Kentron",
+      "position": {
+        "lat": 40.182,
+        "lng": 44.516
+      },
+      "aqi": 15
+    },
+    {
+      "id": 397555,
+      "title": "Nor Nork 2nd massive",
+      "position": {
+        "lat": 40.2,
+        "lng": 44.582
+      },
+      "aqi": 9
+    },
+  ]
+}
+
+
+https://armaqi.org/api/waqi/info?id=76921
+
+{
+  "station": {
+    "id": 76921,
+    "title": "Kentron",
+    "position": {
+      "lat": 40.182,
+      "lng": 44.516
+    },
+    "pm25": 15,
+    "pm10": 10,
+    "lastUpdated": "2024-03-08T10:37:33Z"
+  }
+}
+

@@ -1,0 +1,34 @@
+
+syntax = "proto3";
+
+package trackerinfo;
+
+option go_package = "github.com/MRibalko/smogtracker/protos";
+
+service TrackerInfo {
+    rpc Full(TrackerInfoRequest) returns (TrackerFullInfoResponse);
+    rpc Short(TrackerInfoRequest) returns (TrackerShortInfoResponse);
+}
+
+message TrackerInfoRequest {}
+
+message TrackerFullInfoResponse {
+    repeated TrackerFullInfo Result = 1;
+}
+
+message TrackerShortInfoResponse {
+    repeated TrackerShortInfo Result = 1;
+}
+
+message TrackerShortInfo {
+    string orig_id = 1;
+    string source = 2;
+}
+
+message TrackerFullInfo {
+    string orig_id = 1;
+    string source = 2;
+    string description = 3;
+    double Latitude = 4;
+    double Longitude = 5;
+}
