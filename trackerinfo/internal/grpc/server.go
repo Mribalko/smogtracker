@@ -11,7 +11,9 @@ import (
 )
 
 type TrackerInfo interface {
-	InfoList(ctx context.Context) ([]models.Tracker, error)
+	Sources(ctx context.Context) ([]string, error)
+	IdsBySource(ctx context.Context, source string) ([]string, error)
+	List(ctx context.Context) ([]models.Tracker, error)
 }
 
 type serverAPI struct {
@@ -23,12 +25,34 @@ func Register(gRPCServer *grpc.Server, infoService TrackerInfo) {
 	trackerinfov1.RegisterTrackerInfoServer(gRPCServer, &serverAPI{infoService: infoService})
 }
 
-func (s *serverAPI) Full(
+func (s *serverAPI) Sources(
 	ctx context.Context,
-	in *trackerinfov1.TrackerInfoRequest,
-) (*trackerinfov1.TrackerFullInfoResponse, error) {
+	in *trackerinfov1.EmptyRequest,
+) (*trackerinfov1.SourcesResponse, error) {
+	sources, err := s.infoService.Sources(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "no data")
+	}
+	return &trackerinfov1.SourcesResponse{Result: sources}, nil
+}
 
-	list, err := s.infoService.InfoList(ctx)
+func (s *serverAPI) IdsBySource(
+	ctx context.Context,
+	in *trackerinfov1.SourceRequest,
+) (*trackerinfov1.IdsBySourceResponse, error) {
+	ids, err := s.infoService.IdsBySource(ctx, in.Source)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "no data")
+	}
+	return &trackerinfov1.IdsBySourceResponse{Result: ids}, nil
+}
+
+func (s *serverAPI) List(
+	ctx context.Context,
+	in *trackerinfov1.EmptyRequest,
+) (*trackerinfov1.FullInfoResponse, error) {
+
+	list, err := s.infoService.List(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "no data")
 	}
@@ -44,25 +68,5 @@ func (s *serverAPI) Full(
 		}
 		result = append(result, &info)
 	}
-	return &trackerinfov1.TrackerFullInfoResponse{Result: result}, nil
-}
-
-func (s *serverAPI) Short(
-	ctx context.Context,
-	in *trackerinfov1.TrackerInfoRequest,
-) (*trackerinfov1.TrackerShortInfoResponse, error) {
-	list, err := s.infoService.InfoList(ctx)
-	if err != nil {
-		return nil, status.Error(codes.Internal, "no data")
-	}
-
-	var result []*trackerinfov1.TrackerShortInfo
-	for _, v := range list {
-		info := trackerinfov1.TrackerShortInfo{
-			OrigId: v.OrigId,
-			Source: v.Source,
-		}
-		result = append(result, &info)
-	}
-	return &trackerinfov1.TrackerShortInfoResponse{Result: result}, nil
+	return &trackerinfov1.FullInfoResponse{Result: result}, nil
 }

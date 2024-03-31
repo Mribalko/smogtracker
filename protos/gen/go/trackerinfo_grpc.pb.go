@@ -22,8 +22,9 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TrackerInfoClient interface {
-	Full(ctx context.Context, in *TrackerInfoRequest, opts ...grpc.CallOption) (*TrackerFullInfoResponse, error)
-	Short(ctx context.Context, in *TrackerInfoRequest, opts ...grpc.CallOption) (*TrackerShortInfoResponse, error)
+	Sources(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*SourcesResponse, error)
+	IdsBySource(ctx context.Context, in *SourceRequest, opts ...grpc.CallOption) (*IdsBySourceResponse, error)
+	List(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*FullInfoResponse, error)
 }
 
 type trackerInfoClient struct {
@@ -34,18 +35,27 @@ func NewTrackerInfoClient(cc grpc.ClientConnInterface) TrackerInfoClient {
 	return &trackerInfoClient{cc}
 }
 
-func (c *trackerInfoClient) Full(ctx context.Context, in *TrackerInfoRequest, opts ...grpc.CallOption) (*TrackerFullInfoResponse, error) {
-	out := new(TrackerFullInfoResponse)
-	err := c.cc.Invoke(ctx, "/trackerinfo.TrackerInfo/Full", in, out, opts...)
+func (c *trackerInfoClient) Sources(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*SourcesResponse, error) {
+	out := new(SourcesResponse)
+	err := c.cc.Invoke(ctx, "/trackerinfo.TrackerInfo/Sources", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *trackerInfoClient) Short(ctx context.Context, in *TrackerInfoRequest, opts ...grpc.CallOption) (*TrackerShortInfoResponse, error) {
-	out := new(TrackerShortInfoResponse)
-	err := c.cc.Invoke(ctx, "/trackerinfo.TrackerInfo/Short", in, out, opts...)
+func (c *trackerInfoClient) IdsBySource(ctx context.Context, in *SourceRequest, opts ...grpc.CallOption) (*IdsBySourceResponse, error) {
+	out := new(IdsBySourceResponse)
+	err := c.cc.Invoke(ctx, "/trackerinfo.TrackerInfo/IdsBySource", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *trackerInfoClient) List(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*FullInfoResponse, error) {
+	out := new(FullInfoResponse)
+	err := c.cc.Invoke(ctx, "/trackerinfo.TrackerInfo/List", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -56,8 +66,9 @@ func (c *trackerInfoClient) Short(ctx context.Context, in *TrackerInfoRequest, o
 // All implementations must embed UnimplementedTrackerInfoServer
 // for forward compatibility
 type TrackerInfoServer interface {
-	Full(context.Context, *TrackerInfoRequest) (*TrackerFullInfoResponse, error)
-	Short(context.Context, *TrackerInfoRequest) (*TrackerShortInfoResponse, error)
+	Sources(context.Context, *EmptyRequest) (*SourcesResponse, error)
+	IdsBySource(context.Context, *SourceRequest) (*IdsBySourceResponse, error)
+	List(context.Context, *EmptyRequest) (*FullInfoResponse, error)
 	mustEmbedUnimplementedTrackerInfoServer()
 }
 
@@ -65,11 +76,14 @@ type TrackerInfoServer interface {
 type UnimplementedTrackerInfoServer struct {
 }
 
-func (UnimplementedTrackerInfoServer) Full(context.Context, *TrackerInfoRequest) (*TrackerFullInfoResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Full not implemented")
+func (UnimplementedTrackerInfoServer) Sources(context.Context, *EmptyRequest) (*SourcesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Sources not implemented")
 }
-func (UnimplementedTrackerInfoServer) Short(context.Context, *TrackerInfoRequest) (*TrackerShortInfoResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Short not implemented")
+func (UnimplementedTrackerInfoServer) IdsBySource(context.Context, *SourceRequest) (*IdsBySourceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method IdsBySource not implemented")
+}
+func (UnimplementedTrackerInfoServer) List(context.Context, *EmptyRequest) (*FullInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method List not implemented")
 }
 func (UnimplementedTrackerInfoServer) mustEmbedUnimplementedTrackerInfoServer() {}
 
@@ -84,38 +98,56 @@ func RegisterTrackerInfoServer(s grpc.ServiceRegistrar, srv TrackerInfoServer) {
 	s.RegisterService(&TrackerInfo_ServiceDesc, srv)
 }
 
-func _TrackerInfo_Full_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TrackerInfoRequest)
+func _TrackerInfo_Sources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EmptyRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(TrackerInfoServer).Full(ctx, in)
+		return srv.(TrackerInfoServer).Sources(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/trackerinfo.TrackerInfo/Full",
+		FullMethod: "/trackerinfo.TrackerInfo/Sources",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TrackerInfoServer).Full(ctx, req.(*TrackerInfoRequest))
+		return srv.(TrackerInfoServer).Sources(ctx, req.(*EmptyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _TrackerInfo_Short_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TrackerInfoRequest)
+func _TrackerInfo_IdsBySource_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SourceRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(TrackerInfoServer).Short(ctx, in)
+		return srv.(TrackerInfoServer).IdsBySource(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/trackerinfo.TrackerInfo/Short",
+		FullMethod: "/trackerinfo.TrackerInfo/IdsBySource",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TrackerInfoServer).Short(ctx, req.(*TrackerInfoRequest))
+		return srv.(TrackerInfoServer).IdsBySource(ctx, req.(*SourceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TrackerInfo_List_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EmptyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TrackerInfoServer).List(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/trackerinfo.TrackerInfo/List",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TrackerInfoServer).List(ctx, req.(*EmptyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -128,12 +160,16 @@ var TrackerInfo_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*TrackerInfoServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Full",
-			Handler:    _TrackerInfo_Full_Handler,
+			MethodName: "Sources",
+			Handler:    _TrackerInfo_Sources_Handler,
 		},
 		{
-			MethodName: "Short",
-			Handler:    _TrackerInfo_Short_Handler,
+			MethodName: "IdsBySource",
+			Handler:    _TrackerInfo_IdsBySource_Handler,
+		},
+		{
+			MethodName: "List",
+			Handler:    _TrackerInfo_List_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
