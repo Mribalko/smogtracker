@@ -3,7 +3,7 @@ syntax = "proto3";
 
 package trackerinfo;
 
-option go_package = "github.com/MRibalko/smogtracker/protos";
+option go_package = "github.com/MRibalko/smogtracker/protos;trackerinfov1";
 
 service TrackerInfo {
     rpc Full(TrackerInfoRequest) returns (TrackerFullInfoResponse);

@@ -87,16 +87,16 @@ func (s *Storage) Delete(ctx context.Context, id models.Id) error {
 	return nil
 }
 
-func (s *Storage) List(ctx context.Context, source string) ([]models.Tracker, error) {
+func (s *Storage) List(ctx context.Context) ([]models.Tracker, error) {
 
 	stmt, err := s.db.Prepare(`SELECT orig_id, source, description, latitude, longitude
 								FROM trackers
-								WHERE source = ?`)
+								`)
 	if err != nil {
 		return nil, err
 	}
 
-	rows, err := stmt.QueryContext(ctx, source)
+	rows, err := stmt.QueryContext(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, storage.ErrSourceNotFound

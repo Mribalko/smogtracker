@@ -45,15 +45,15 @@ func TestSqlite(t *testing.T) {
 
 	ctx := context.Background()
 
-	t.Run("Insert and read", func(t *testing.T) {
-		t.Parallel()
-		testTracker := models.Tracker{
-			OrigId:      "1",
-			Source:      "test",
-			Description: "some description",
-			Latitude:    1.3224,
-			Longitude:   5.221,
-		}
+	testTracker := models.Tracker{
+		OrigId:      "1",
+		Source:      "test",
+		Description: "some description",
+		Latitude:    1.3224,
+		Longitude:   5.221,
+	}
+
+	t.Run("Insert", func(t *testing.T) {
 
 		err := storage.Insert(ctx, testTracker)
 		require.NoError(t, err)
@@ -61,39 +61,25 @@ func TestSqlite(t *testing.T) {
 		err = storage.Insert(ctx, testTracker)
 		require.ErrorIs(t, err, errStorage.ErrTrackerExists)
 
-		res, err := storage.List(ctx, testTracker.Source)
+		res, err := storage.List(ctx)
 		require.NoError(t, err)
 		require.NotEmpty(t, res)
 
 		require.Equal(t, testTracker, res[0])
 
-		_, err = storage.List(ctx, "random")
-		require.ErrorIs(t, err, errStorage.ErrSourceNotFound)
-
 	})
 
 	t.Run("Update", func(t *testing.T) {
-		t.Parallel()
-		testTracker := models.Tracker{
-			OrigId:      "1",
-			Source:      "update",
-			Description: "some description",
-			Latitude:    1.3224,
-			Longitude:   5.221,
-		}
 
 		updTracker := testTracker
 		updTracker.Description = "new"
 		updTracker.Latitude = 2.1
 		updTracker.Longitude = 1.1
 
-		err := storage.Insert(ctx, testTracker)
-		require.NoError(t, err)
-
 		err = storage.Update(ctx, updTracker)
 		require.NoError(t, err)
 
-		res, err := storage.List(ctx, testTracker.Source)
+		res, err := storage.List(ctx)
 		require.NoError(t, err)
 		require.NotEmpty(t, res)
 
@@ -102,22 +88,11 @@ func TestSqlite(t *testing.T) {
 	})
 
 	t.Run("Delete", func(t *testing.T) {
-		t.Parallel()
-		testTracker := models.Tracker{
-			OrigId:      "1",
-			Source:      "delete",
-			Description: "some description",
-			Latitude:    1.3224,
-			Longitude:   5.221,
-		}
-
-		err := storage.Insert(ctx, testTracker)
-		require.NoError(t, err)
 
 		err = storage.Delete(ctx, testTracker.Id())
 		require.NoError(t, err)
 
-		res, err := storage.List(ctx, testTracker.Source)
+		res, err := storage.List(ctx)
 		require.Empty(t, res)
 		require.ErrorIs(t, err, errStorage.ErrSourceNotFound)
 

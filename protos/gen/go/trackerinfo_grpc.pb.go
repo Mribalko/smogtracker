@@ -4,7 +4,7 @@
 // - protoc             v4.25.3
 // source: trackerinfo.proto
 
-package protos
+package trackerinfov1
 
 import (
 	context "context"

@@ -33,7 +33,7 @@ func (ts *testStorage) Delete(ctx context.Context, id models.Id) error {
 	return nil
 }
 
-func (ts *testStorage) List(ctx context.Context, source string) ([]models.Tracker, error) {
+func (ts *testStorage) List(ctx context.Context) ([]models.Tracker, error) {
 	return ts.data, nil
 }
 

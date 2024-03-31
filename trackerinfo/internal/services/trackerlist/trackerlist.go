@@ -15,7 +15,7 @@ type (
 		Insert(ctx context.Context, tracker models.Tracker) error
 		Update(ctx context.Context, tracker models.Tracker) error
 		Delete(ctx context.Context, id models.Id) error
-		List(ctx context.Context, source string) ([]models.Tracker, error)
+		List(ctx context.Context) ([]models.Tracker, error)
 	}
 
 	Fetcher interface {
@@ -38,7 +38,7 @@ func New(logger *slog.Logger, storage Storage) (*TrackerList, error) {
 		hashes:  make(map[models.Id]models.Hash),
 	}
 
-	trList, err := tl.storage.List(context.Background(), "")
+	trList, err := tl.storage.List(context.Background())
 	if err != nil {
 		return nil, err
 	}
