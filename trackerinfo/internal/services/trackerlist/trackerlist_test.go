@@ -3,6 +3,7 @@ package trackerlist_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/logger/slogdiscard"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/models"
@@ -12,7 +13,9 @@ import (
 )
 
 type testStorage struct {
-	data     []models.Tracker
+	trackers []models.Tracker
+	sources  []string
+	ids      []string
 	inserted int
 	updated  int
 	deleted  int
@@ -33,25 +36,93 @@ func (ts *testStorage) Delete(ctx context.Context, id models.Id) error {
 	return nil
 }
 
-func (ts *testStorage) List(ctx context.Context) ([]models.Tracker, error) {
-	return ts.data, nil
+func (ts *testStorage) Trackers(ctx context.Context) ([]models.Tracker, error) {
+	return ts.trackers, nil
+}
+
+func (ts *testStorage) Sources(ctx context.Context) ([]string, error) {
+	return ts.sources, nil
+}
+
+func (ts *testStorage) IdsBySource(ctx context.Context, source string) ([]string, error) {
+	return ts.ids, nil
 }
 
 type testFetcher struct {
-	data []models.Tracker
+	data     []models.Tracker
+	name     string
+	interval time.Duration
 }
 
-func (tf *testFetcher) Fetch(ctx context.Context, out chan<- models.Tracker) error {
-	for _, tr := range tf.data {
-		out <- tr
+func (tf *testFetcher) Fetch(ctx context.Context) ([]models.Tracker, error) {
+	return tf.data, nil
+}
+
+func (tf *testFetcher) Name() models.SourceName {
+	return models.SourceName(tf.name)
+}
+
+func (tf *testFetcher) UpdateInterval() time.Duration {
+	return tf.interval
+}
+
+func TestTrackerList_RegisterSource(t *testing.T) {
+	cases := []struct {
+		name        string
+		fetcher     trackerlist.Fetcher
+		expectError bool
+	}{
+		{
+			"no name",
+			&testFetcher{
+				name:     "",
+				interval: 1,
+			},
+			true,
+		},
+		{
+			"interval not correct",
+			&testFetcher{
+				name:     "test",
+				interval: 0,
+			},
+			true,
+		},
+		{
+			"correct input",
+			&testFetcher{
+				name:     "test",
+				interval: 1,
+			},
+			false,
+		},
+		{
+			"adding existing item",
+			&testFetcher{
+				name:     "test",
+				interval: 1,
+			},
+			true,
+		},
 	}
-	return nil
-}
+	storage := &testStorage{}
+	tl, err := trackerlist.New(slogdiscard.NewDiscardLogger(), storage)
+	require.NoError(t, err)
 
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tl.RegisterSource(tt.fetcher); (err != nil) == tt.expectError {
+				t.Error("expected error")
+			}
+		})
+	}
+
+}
 func TestTrackerList_Update(t *testing.T) {
 
 	testTracker1 := models.Tracker{
 		OrigId:      "1",
+		Source:      "source1",
 		Description: "1",
 		Latitude:    1,
 		Longitude:   1,
@@ -59,6 +130,7 @@ func TestTrackerList_Update(t *testing.T) {
 
 	testTracker1Up := models.Tracker{
 		OrigId:      "1",
+		Source:      "source1",
 		Description: "1_up",
 		Latitude:    1,
 		Longitude:   1,
@@ -66,6 +138,7 @@ func TestTrackerList_Update(t *testing.T) {
 
 	testTracker2 := models.Tracker{
 		OrigId:      "2",
+		Source:      "source2",
 		Description: "2",
 		Latitude:    2,
 		Longitude:   2,
@@ -73,81 +146,82 @@ func TestTrackerList_Update(t *testing.T) {
 
 	testTracker2Up := models.Tracker{
 		OrigId:      "2",
+		Source:      "source2",
 		Description: "2_up",
 		Latitude:    2,
 		Longitude:   2,
 	}
 
-	t.Run("insert", func(t *testing.T) {
-		t.Parallel()
+	fetcher1 := &testFetcher{
+		data:     []models.Tracker{testTracker1},
+		name:     "source1",
+		interval: 10 * time.Second,
+	}
+
+	fetcher2 := &testFetcher{
+		data:     []models.Tracker{testTracker2},
+		name:     "source2",
+		interval: 10 * time.Second,
+	}
+
+	_ = testTracker1Up
+	_ = testTracker2Up
+
+	ctx := context.Background()
+
+	t.Run("Insertion to empty storage", func(t *testing.T) {
 		storage := &testStorage{}
-		testTrackers := []models.Tracker{testTracker1, testTracker2}
-		fetcher := &testFetcher{data: testTrackers}
 
 		tl, err := trackerlist.New(slogdiscard.NewDiscardLogger(), storage)
-
 		require.NoError(t, err)
 
-		tl.AddSource(fetcher)
-		tl.Update(context.Background())
-		assert.Equal(t, len(testTrackers), storage.inserted, "should be equal")
-		// fetching the same trackers. Nothing must change
-		tl.Update(context.Background())
-		assert.Equal(t, len(testTrackers), storage.inserted, "added insertions")
-		assert.Equal(t, 0, storage.deleted, "deletions mustn't occur")
-		assert.Equal(t, 0, storage.updated, "updates mustn't occur")
+		err = tl.RegisterSource(fetcher1)
+		require.NoError(t, err)
+
+		tl.StartUpdate(ctx)
+		time.Sleep(150 * time.Millisecond)
+		tl.StopUpdate()
+		assert.Equal(t, 1, storage.inserted, "1 insertion expected")
+		assert.Equal(t, 0, storage.deleted, "no deletions expected")
+		assert.Equal(t, 0, storage.updated, "no updates expected")
 
 	})
 
-	t.Run("update", func(t *testing.T) {
-		t.Parallel()
-		testTrackers := []models.Tracker{testTracker1}
-		storage := &testStorage{data: testTrackers}
-		fetcher := &testFetcher{data: testTrackers}
+	t.Run("Insertion existing item", func(t *testing.T) {
+		storage := &testStorage{trackers: []models.Tracker{testTracker1}}
 
 		tl, err := trackerlist.New(slogdiscard.NewDiscardLogger(), storage)
 		require.NoError(t, err)
-		tl.AddSource(fetcher)
-		tl.Update(context.Background())
-		assert.Equal(t, 0, storage.inserted, "insertions mustn't occur")
-		assert.Equal(t, 0, storage.deleted, "deletions mustn't occur")
-		assert.Equal(t, 0, storage.updated, "updates mustn't occur")
 
-		fetcher.data = []models.Tracker{testTracker1Up, testTracker2}
-		tl.Update(context.Background())
-		assert.Equal(t, 1, storage.inserted, "no insertion")
-		assert.Equal(t, 0, storage.deleted, "deletions mustn't occur")
-		assert.Equal(t, 1, storage.updated, "not updated")
+		err = tl.RegisterSource(fetcher1)
+		require.NoError(t, err)
 
-		fetcher.data = []models.Tracker{testTracker1Up, testTracker2Up}
-		tl.Update(context.Background())
-		assert.Equal(t, 1, storage.inserted, "insertions mustn't occur")
-		assert.Equal(t, 0, storage.deleted, "deletions mustn't occur")
-		assert.Equal(t, 2, storage.updated, "not updated")
-
+		tl.StartUpdate(ctx)
+		time.Sleep(150 * time.Millisecond)
+		tl.StopUpdate()
+		assert.Equal(t, 0, storage.inserted, "no insertions expected")
+		assert.Equal(t, 0, storage.deleted, "no deletions expected")
+		assert.Equal(t, 0, storage.updated, "no updates expected")
 	})
 
-	t.Run("delete", func(t *testing.T) {
-		t.Parallel()
-		storageTrackers := []models.Tracker{testTracker1, testTracker2}
-		storage := &testStorage{data: storageTrackers}
-		fetcherTrackers := []models.Tracker{testTracker2}
-		fetcher := &testFetcher{data: fetcherTrackers}
+	t.Run("Two fetchers empty storage", func(t *testing.T) {
+		storage := &testStorage{}
 
 		tl, err := trackerlist.New(slogdiscard.NewDiscardLogger(), storage)
 		require.NoError(t, err)
-		tl.AddSource(fetcher)
-		tl.Update(context.Background())
-		assert.Equal(t, 0, storage.inserted, "insertions mustn't occur")
-		assert.Equal(t, 1, storage.deleted, "not deleted")
-		assert.Equal(t, 0, storage.updated, "updates mustn't occur")
 
-		fetcher.data = []models.Tracker{}
-		tl.Update(context.Background())
-		assert.Equal(t, 0, storage.inserted, "insertions mustn't occur")
-		assert.Equal(t, 2, storage.deleted, "not deleted")
-		assert.Equal(t, 0, storage.updated, "updates mustn't occur")
+		err = tl.RegisterSource(fetcher1)
+		require.NoError(t, err)
 
+		err = tl.RegisterSource(fetcher2)
+		require.NoError(t, err)
+
+		tl.StartUpdate(ctx)
+		time.Sleep(150 * time.Millisecond)
+		tl.StopUpdate()
+		assert.Equal(t, 2, storage.inserted, "no insertions expected")
+		assert.Equal(t, 0, storage.deleted, "no deletions expected")
+		assert.Equal(t, 0, storage.updated, "no updates expected")
 	})
 
 }

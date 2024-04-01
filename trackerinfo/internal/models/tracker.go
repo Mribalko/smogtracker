@@ -6,8 +6,9 @@ import (
 )
 
 type (
-	Hash string
-	Id   string
+	Hash       string
+	Id         string
+	SourceName string
 
 	Tracker struct {
 		OrigId      string
@@ -28,4 +29,8 @@ func (t *Tracker) Hash() Hash {
 
 func (t *Tracker) Id() Id {
 	return Id(fmt.Sprintf("%s|%s", t.Source, t.OrigId))
+}
+
+func (t *Tracker) SourceName() SourceName {
+	return SourceName(t.Source)
 }
