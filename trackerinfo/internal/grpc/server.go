@@ -31,7 +31,10 @@ func (s *serverAPI) Sources(
 ) (*trackerinfov1.SourcesResponse, error) {
 	sources, err := s.infoService.Sources(ctx)
 	if err != nil {
-		return nil, status.Error(codes.Internal, "no data")
+		return nil, status.Error(codes.Internal, "storage error")
+	}
+	if len(sources) == 0 {
+		return nil, status.Error(codes.NotFound, "no data")
 	}
 	return &trackerinfov1.SourcesResponse{Result: sources}, nil
 }
@@ -40,9 +43,16 @@ func (s *serverAPI) IdsBySource(
 	ctx context.Context,
 	in *trackerinfov1.SourceRequest,
 ) (*trackerinfov1.IdsBySourceResponse, error) {
+	if len(in.Source) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "source is empty")
+	}
 	ids, err := s.infoService.IdsBySource(ctx, in.Source)
 	if err != nil {
-		return nil, status.Error(codes.Internal, "no data")
+		return nil, status.Error(codes.Internal, "storage error")
+	}
+
+	if len(ids) == 0 {
+		return nil, status.Error(codes.NotFound, "no source")
 	}
 	return &trackerinfov1.IdsBySourceResponse{Result: ids}, nil
 }
@@ -54,7 +64,11 @@ func (s *serverAPI) List(
 
 	list, err := s.infoService.List(ctx)
 	if err != nil {
-		return nil, status.Error(codes.Internal, "no data")
+		return nil, status.Error(codes.Internal, "storage error")
+	}
+
+	if len(list) == 0 {
+		return nil, status.Error(codes.NotFound, "no data")
 	}
 
 	var result []*trackerinfov1.TrackerFullInfo
