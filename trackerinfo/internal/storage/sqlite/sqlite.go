@@ -24,6 +24,15 @@ func New(storagePath string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
+/*
+Insert(ctx context.Context, tracker models.Tracker) error
+		Update(ctx context.Context, tracker models.Tracker) error
+		Delete(ctx context.Context, id models.Id) error
+		Trackers(ctx context.Context) ([]models.Tracker, error)
+		Sources(ctx context.Context) ([]string, error)
+		IdsBySource(ctx context.Context, source string) ([]string, error)
+*/
+
 func (s *Storage) Insert(ctx context.Context, tracker models.Tracker) error {
 	stmt, err := s.db.Prepare(`INSERT INTO 
 								trackers(id, orig_id, source, description, latitude, longitude)
@@ -87,23 +96,19 @@ func (s *Storage) Delete(ctx context.Context, id models.Id) error {
 	return nil
 }
 
-func (s *Storage) List(ctx context.Context) ([]models.Tracker, error) {
+func (s *Storage) Trackers(ctx context.Context) ([]models.Tracker, error) {
 
 	stmt, err := s.db.Prepare(`SELECT orig_id, source, description, latitude, longitude
-								FROM trackers
-								`)
+								FROM trackers`)
 	if err != nil {
 		return nil, err
 	}
 
 	rows, err := stmt.QueryContext(ctx)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, storage.ErrSourceNotFound
-		}
+
 		return nil, err
 	}
-
 	defer rows.Close()
 
 	var res []models.Tracker
@@ -115,6 +120,65 @@ func (s *Storage) List(ctx context.Context) ([]models.Tracker, error) {
 			return nil, err
 		}
 		res = append(res, tr)
+	}
+
+	return res, nil
+}
+
+func (s *Storage) Sources(ctx context.Context) ([]string, error) {
+	stmt, err := s.db.Prepare(`SELECT DISTINCT source
+								FROM trackers`)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := stmt.QueryContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res []string
+
+	for rows.Next() {
+		var source string
+		err := rows.Scan(&source)
+
+		if err != nil {
+			return nil, err
+		}
+
+		res = append(res, source)
+	}
+
+	return res, nil
+}
+
+func (s *Storage) IdsBySource(ctx context.Context, source string) ([]string, error) {
+	stmt, err := s.db.Prepare(`SELECT orig_id
+								FROM trackers
+								WHERE source = ?`)
+
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := stmt.QueryContext(ctx, source)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res []string
+
+	for rows.Next() {
+		var id string
+		err := rows.Scan(&id)
+		if err != nil {
+			return nil, err
+		}
+
+		res = append(res, id)
 	}
 	if len(res) == 0 {
 		return nil, storage.ErrSourceNotFound

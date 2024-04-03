@@ -47,7 +47,7 @@ func TestSqlite(t *testing.T) {
 
 	testTracker := models.Tracker{
 		OrigId:      "1",
-		Source:      "test",
+		Source:      "test1",
 		Description: "some description",
 		Latitude:    1.3224,
 		Longitude:   5.221,
@@ -61,7 +61,7 @@ func TestSqlite(t *testing.T) {
 		err = storage.Insert(ctx, testTracker)
 		require.ErrorIs(t, err, errStorage.ErrTrackerExists)
 
-		res, err := storage.List(ctx)
+		res, err := storage.Trackers(ctx)
 		require.NoError(t, err)
 		require.NotEmpty(t, res)
 
@@ -79,7 +79,7 @@ func TestSqlite(t *testing.T) {
 		err = storage.Update(ctx, updTracker)
 		require.NoError(t, err)
 
-		res, err := storage.List(ctx)
+		res, err := storage.Trackers(ctx)
 		require.NoError(t, err)
 		require.NotEmpty(t, res)
 
@@ -92,9 +92,58 @@ func TestSqlite(t *testing.T) {
 		err = storage.Delete(ctx, testTracker.Id())
 		require.NoError(t, err)
 
-		res, err := storage.List(ctx)
+		res, err := storage.Trackers(ctx)
 		require.Empty(t, res)
+		require.NoError(t, err)
+
+	})
+
+	t.Run("Sources", func(t *testing.T) {
+		sources := []string{"test1", "test2", "test3"}
+		for _, source := range sources {
+			err := storage.Insert(ctx, models.Tracker{
+				OrigId: "1",
+				Source: source,
+			})
+			require.NoError(t, err)
+		}
+
+		err := storage.Insert(ctx, models.Tracker{
+			OrigId: "2",
+			Source: sources[0],
+		})
+		require.NoError(t, err)
+
+		got, err := storage.Sources(ctx)
+		require.NoError(t, err)
+		require.Equal(t, sources, got)
+		t.Cleanup(func() {
+			m.Down()
+			m.Up()
+		})
+	})
+
+	t.Run("IdsBySource", func(t *testing.T) {
+		const (
+			source            = "source1"
+			notExistingSource = "nosource"
+		)
+		ids := []string{"id1", "id2"}
+		for _, id := range ids {
+			err := storage.Insert(ctx, models.Tracker{
+				OrigId: id,
+				Source: source,
+			})
+			require.NoError(t, err)
+		}
+
+		res, err := storage.IdsBySource(ctx, notExistingSource)
 		require.ErrorIs(t, err, errStorage.ErrSourceNotFound)
+		require.Empty(t, res)
+
+		res, err = storage.IdsBySource(ctx, source)
+		require.NoError(t, err)
+		require.Equal(t, ids, res)
 
 	})
 
