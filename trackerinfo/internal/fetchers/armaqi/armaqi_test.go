@@ -25,7 +25,7 @@ func NewTestClient(f RoundTripFunc) *http.Client {
 	}
 }
 func TestArmaqi_Fetch(t *testing.T) {
-
+	const url = "https://armaqi.org/api/waqi/list"
 	const respJSON = `{
 		"stations": [
 		  {
@@ -49,8 +49,25 @@ func TestArmaqi_Fetch(t *testing.T) {
 		]
 	  }`
 
+	want := []models.Tracker{
+		{
+			OrigId:      "76921",
+			Source:      "armaqi",
+			Description: "Kentron",
+			Latitude:    40.182,
+			Longitude:   44.516,
+		},
+		{
+			OrigId:      "397555",
+			Source:      "armaqi",
+			Description: "Nor Nork 2nd massive",
+			Latitude:    40.2,
+			Longitude:   44.582,
+		},
+	}
+
 	testClient := NewTestClient(func(req *http.Request) *http.Response {
-		assert.Equal(t, "https://armaqi.org/api/waqi/list", req.URL.String())
+		assert.Equal(t, url, req.URL.String())
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Header:     make(http.Header),
@@ -58,27 +75,10 @@ func TestArmaqi_Fetch(t *testing.T) {
 		}
 	})
 
-	armaqi := armaqi.New(testClient)
-	out := make(chan models.Tracker, 2)
-	defer close(out)
+	armaqi := armaqi.New(testClient, 1)
 
-	err := armaqi.Fetch(context.Background(), out)
+	got, err := armaqi.Fetch(context.Background())
 	require.NoError(t, err)
-
-	require.Equal(t, models.Tracker{
-		OrigId:      "76921",
-		Source:      "armaqi",
-		Description: "Kentron",
-		Latitude:    40.182,
-		Longitude:   44.516,
-	}, <-out)
-
-	require.Equal(t, models.Tracker{
-		OrigId:      "397555",
-		Source:      "armaqi",
-		Description: "Nor Nork 2nd massive",
-		Latitude:    40.2,
-		Longitude:   44.582,
-	}, <-out)
+	require.Equal(t, want, got)
 
 }
