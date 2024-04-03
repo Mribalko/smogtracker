@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"os"
 	"testing"
 
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/models"
@@ -19,11 +18,10 @@ import (
 
 func TestSqlite(t *testing.T) {
 	const (
-		storagePath   = "../../../storage/test_trackerinfo.db"
 		migrationPath = "../../../migrations"
 	)
 
-	db, err := sql.Open("sqlite3", storagePath)
+	db, err := sql.Open("sqlite3", ":memory:")
 	require.NoError(t, err)
 
 	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
@@ -37,10 +35,9 @@ func TestSqlite(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		m.Down()
-		os.Remove(storagePath)
 	})
 
-	storage, err := sqlite.New(storagePath)
+	storage := sqlite.NewWithDatabaseInstance(db)
 	require.NoError(t, err)
 
 	ctx := context.Background()

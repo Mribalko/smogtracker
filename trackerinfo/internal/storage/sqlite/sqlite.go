@@ -24,14 +24,9 @@ func New(storagePath string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
-/*
-Insert(ctx context.Context, tracker models.Tracker) error
-		Update(ctx context.Context, tracker models.Tracker) error
-		Delete(ctx context.Context, id models.Id) error
-		Trackers(ctx context.Context) ([]models.Tracker, error)
-		Sources(ctx context.Context) ([]string, error)
-		IdsBySource(ctx context.Context, source string) ([]string, error)
-*/
+func NewWithDatabaseInstance(db *sql.DB) *Storage {
+	return &Storage{db: db}
+}
 
 func (s *Storage) Insert(ctx context.Context, tracker models.Tracker) error {
 	stmt, err := s.db.Prepare(`INSERT INTO 
