@@ -8,10 +8,32 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
-type Config struct {
-	Env         string        `json:"env" env-default:"local"`
-	StoragePath string        `json:"storage_path" env-required:"true"`
-	HttpTimeout time.Duration `json:"http_timeout" env-default:"1s"`
+type (
+	Config struct {
+		Env         string     `json:"env" env-default:"local"`
+		StoragePath string     `json:"storage_path" env-required:"true"`
+		HttpTimeout Duration   `json:"http_timeout" env-default:"1s"`
+		GRPC        GRPCConfig `json:"grpc"`
+	}
+
+	GRPCConfig struct {
+		Port    int      `json:"port" env-required:"true"`
+		Timeout Duration `json:"timeout" env-default:"5s"`
+	}
+
+	Duration struct {
+		time.Duration
+	}
+)
+
+func (d *Duration) UnmarshalJSON(b []byte) (err error) {
+
+	sd := string(b[1 : len(b)-1])
+	d.Duration, err = time.ParseDuration(sd)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // gets config path from a command line flag, then from an env variable CONFIG_PATH
@@ -30,7 +52,7 @@ func MustLoad() *Config {
 		panic("config loading failed: " + err.Error())
 	}
 
-	return nil
+	return &config
 }
 
 // gets a config path from a command line flag, then from an env variable CONFIG_PATH

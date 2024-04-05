@@ -1,5 +1,9 @@
 {
     "env": "local",
     "storage_path": "./storage/trackerinfo.db",
+    "grpc": {
+        "port": 44044,
+        "timeout": "5s"
+    },
     "http_timeout": "1s" 
 }
