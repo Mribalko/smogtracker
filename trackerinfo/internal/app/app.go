@@ -11,6 +11,7 @@ import (
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/fetchers/armaqi"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/services/trackerlist"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/storage/sqlite"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type App struct {
@@ -22,6 +23,7 @@ type App struct {
 
 func New(ctx context.Context,
 	log *slog.Logger,
+	tracer trace.Tracer,
 	httpTimeout time.Duration,
 	updateInterval time.Duration,
 	grpcPort int,
@@ -33,7 +35,7 @@ func New(ctx context.Context,
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	trackerListService, err := trackerlist.New(log, storage)
+	trackerListService, err := trackerlist.New(log, tracer, storage)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}

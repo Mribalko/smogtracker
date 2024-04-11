@@ -16,6 +16,7 @@ import (
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/app"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/logger/slogdiscard"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/models"
+	"github.com/MRibalko/smogtracker/trackerinfo/internal/trace"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -95,9 +96,15 @@ func TestApp_LoadAndDisplay(t *testing.T) {
 		os.Remove(storagePath)
 	})
 
+	tp, err := trace.New(false, "", "test")
+	require.NoError(t, err)
+
+	tracer := tp.Tracer("")
+
 	// create and start test app
 	app, err := app.New(ctx,
 		slogdiscard.NewDiscardLogger(),
+		tracer,
 		10*time.Second,
 		10*time.Minute,
 		grpcPort,

@@ -8,6 +8,7 @@ import (
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/logger/slogdiscard"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/models"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/services/trackerlist"
+	"github.com/MRibalko/smogtracker/trackerinfo/internal/trace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -106,7 +107,8 @@ func TestTrackerList_RegisterSource(t *testing.T) {
 		},
 	}
 	storage := &testStorage{}
-	tl, err := trackerlist.New(slogdiscard.NewDiscardLogger(), storage)
+
+	tl, err := newTrackerListWithStorage(t, storage)
 	require.NoError(t, err)
 
 	for _, tt := range cases {
@@ -178,7 +180,7 @@ func TestTrackerList_Update(t *testing.T) {
 		t.Parallel()
 		storage := &testStorage{}
 
-		tl, err := trackerlist.New(slogdiscard.NewDiscardLogger(), storage)
+		tl, err := newTrackerListWithStorage(t, storage)
 		require.NoError(t, err)
 
 		err = tl.RegisterSource(fetcher1)
@@ -197,7 +199,7 @@ func TestTrackerList_Update(t *testing.T) {
 		t.Parallel()
 		storage := &testStorage{trackers: []models.Tracker{testTracker1}}
 
-		tl, err := trackerlist.New(slogdiscard.NewDiscardLogger(), storage)
+		tl, err := newTrackerListWithStorage(t, storage)
 		require.NoError(t, err)
 
 		err = tl.RegisterSource(fetcher1)
@@ -215,7 +217,7 @@ func TestTrackerList_Update(t *testing.T) {
 		t.Parallel()
 		storage := &testStorage{}
 
-		tl, err := trackerlist.New(slogdiscard.NewDiscardLogger(), storage)
+		tl, err := newTrackerListWithStorage(t, storage)
 		require.NoError(t, err)
 
 		err = tl.RegisterSource(fetcher1)
@@ -242,7 +244,7 @@ func TestTrackerList_Update(t *testing.T) {
 			Longitude:   2,
 		}}}
 
-		tl, err := trackerlist.New(slogdiscard.NewDiscardLogger(), storage)
+		tl, err := newTrackerListWithStorage(t, storage)
 		require.NoError(t, err)
 
 		err = tl.RegisterSource(fetcher1)
@@ -258,7 +260,7 @@ func TestTrackerList_Update(t *testing.T) {
 	t.Run("Update", func(t *testing.T) {
 		storage := &testStorage{trackers: []models.Tracker{testTracker1Up}}
 
-		tl, err := trackerlist.New(slogdiscard.NewDiscardLogger(), storage)
+		tl, err := newTrackerListWithStorage(t, storage)
 		require.NoError(t, err)
 
 		err = tl.RegisterSource(fetcher1)
@@ -271,5 +273,17 @@ func TestTrackerList_Update(t *testing.T) {
 		assert.Equal(t, 0, storage.deleted, "no deletions expected")
 		assert.Equal(t, 1, storage.updated, "1 update expected")
 	})
+
+}
+
+func newTrackerListWithStorage(t *testing.T, storage trackerlist.Storage) (*trackerlist.TrackerList, error) {
+	t.Helper()
+	tp, err := trace.New(false, "", "test")
+	if err != nil {
+		return nil, err
+	}
+
+	tracer := tp.Tracer("")
+	return trackerlist.New(slogdiscard.NewDiscardLogger(), tracer, storage)
 
 }

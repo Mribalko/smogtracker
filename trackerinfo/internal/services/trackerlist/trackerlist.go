@@ -11,6 +11,8 @@ import (
 
 	sl "github.com/MRibalko/smogtracker/trackerinfo/internal/logger"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/models"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type (
@@ -31,6 +33,7 @@ type (
 
 	TrackerList struct {
 		log     *slog.Logger
+		tracer  trace.Tracer
 		storage Storage
 		sources map[models.SourceName]Fetcher
 		mu      sync.Mutex
@@ -40,10 +43,11 @@ type (
 	}
 )
 
-func New(logger *slog.Logger, storage Storage) (*TrackerList, error) {
+func New(logger *slog.Logger, tracer trace.Tracer, storage Storage) (*TrackerList, error) {
 
 	tl := &TrackerList{
 		log:     logger,
+		tracer:  tracer,
 		storage: storage,
 		sources: make(map[models.SourceName]Fetcher),
 		hashes:  make(map[models.SourceName]map[models.Id]models.Hash),
@@ -158,12 +162,15 @@ func (tl *TrackerList) Sources(ctx context.Context) ([]string, error) {
 	if len(tl.sources) == 0 {
 		return nil, fmt.Errorf("%s: no sources", op)
 	}
+	_, span := tl.tracer.Start(ctx, op)
+	defer span.End()
 
 	var sources []string
 
 	for k := range tl.sources {
 		sources = append(sources, string(k))
 	}
+	span.SetAttributes(attribute.Int("sources returned", len(sources)))
 
 	return sources, nil
 }

@@ -9,6 +9,7 @@ import (
 	trackerinfogrpc "github.com/MRibalko/smogtracker/trackerinfo/internal/grpc"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -22,7 +23,7 @@ type App struct {
 
 func New(log *slog.Logger, trackerInfoService trackerinfogrpc.TrackerInfo, port int) *App {
 	logOptions := []logging.Option{
-		logging.WithLogOnEvents(logging.StartCall, logging.FinishCall, logging.PayloadSent),
+		logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
 		logging.WithDurationField(logging.DefaultDurationToFields),
 	}
 
@@ -33,10 +34,12 @@ func New(log *slog.Logger, trackerInfoService trackerinfogrpc.TrackerInfo, port 
 		}),
 	}
 
-	gRPCServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
-		recovery.UnaryServerInterceptor(recOptions...),
-		logging.UnaryServerInterceptor(InterceptorLogger(log), logOptions...),
-	))
+	gRPCServer := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+		grpc.ChainUnaryInterceptor(
+			recovery.UnaryServerInterceptor(recOptions...),
+			logging.UnaryServerInterceptor(InterceptorLogger(log), logOptions...),
+		))
 
 	trackerinfogrpc.Register(gRPCServer, trackerInfoService)
 

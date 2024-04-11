@@ -5,6 +5,10 @@
         "port": 44044,
         "timeout": "5s"
     },
-    "http_timeout": "10ms",
-    "fetchers_update_interval": "1m" 
+    "http_timeout": "10s",
+    "fetchers_update_interval": "10m",
+    "tracing": {
+        "enabled": true,
+        "jaeger_url": ""
+    }
 }
