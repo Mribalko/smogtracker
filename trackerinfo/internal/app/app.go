@@ -20,7 +20,13 @@ type App struct {
 	log     *slog.Logger
 }
 
-func New(ctx context.Context, log *slog.Logger, grpcPort int, storagePath string) (*App, error) {
+func New(ctx context.Context,
+	log *slog.Logger,
+	httpTimeout time.Duration,
+	updateInterval time.Duration,
+	grpcPort int,
+	storagePath string,
+) (*App, error) {
 	const op = "app.New"
 	storage, err := sqlite.New(storagePath)
 	if err != nil {
@@ -32,7 +38,9 @@ func New(ctx context.Context, log *slog.Logger, grpcPort int, storagePath string
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	armaqiFetcher := armaqi.New(&http.Client{Timeout: 10 * time.Second}, 1*time.Minute)
+	httpClient := &http.Client{Timeout: httpTimeout}
+
+	armaqiFetcher := armaqi.New(httpClient, updateInterval)
 	err = trackerListService.RegisterSource(armaqiFetcher)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)

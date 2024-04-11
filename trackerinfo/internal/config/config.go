@@ -10,10 +10,11 @@ import (
 
 type (
 	Config struct {
-		Env         string     `json:"env" env-default:"local"`
-		StoragePath string     `json:"storage_path" env-required:"true"`
-		HttpTimeout Duration   `json:"http_timeout" env-default:"1s"`
-		GRPC        GRPCConfig `json:"grpc"`
+		Env                    string     `json:"env" env-default:"local"`
+		StoragePath            string     `json:"storage_path" env-required:"true"`
+		HttpTimeout            Duration   `json:"http_timeout" env-default:"1s"`
+		GRPC                   GRPCConfig `json:"grpc"`
+		FetchersUpdateInterval Duration   `json:"fetchers_update_interval" env-default:"10m"`
 	}
 
 	GRPCConfig struct {

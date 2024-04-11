@@ -18,7 +18,11 @@ func main() {
 	ctx, _ := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	app, err := app.New(ctx, log, cfg.GRPC.Port, cfg.StoragePath)
+	app, err := app.New(ctx, log,
+		cfg.HttpTimeout.Duration,
+		cfg.FetchersUpdateInterval.Duration,
+		cfg.GRPC.Port,
+		cfg.StoragePath)
 	if err != nil {
 		panic(err)
 	}

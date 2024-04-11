@@ -2,6 +2,7 @@ package trackerlist
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -110,7 +111,7 @@ func (tl *TrackerList) StartUpdate(ctx context.Context) {
 	for _, v := range tl.sources {
 		wg.Add(1)
 		go func() {
-			log.Info(fmt.Sprintf("fetcher \"%s\" started", v.Name()))
+			log.Info(fmt.Sprintf("fetcher \"%s\" started, update interval %s", v.Name(), v.UpdateInterval()))
 			defer wg.Done()
 			t := time.NewTicker(v.UpdateInterval())
 			defer t.Stop()
@@ -123,7 +124,6 @@ func (tl *TrackerList) StartUpdate(ctx context.Context) {
 				}
 				if err := tl.makeUpdates(updctx, v.Name(), res); err != nil {
 					log.Error(fmt.Sprintf("update \"%s\" failed", v.Name()), sl.Err(err))
-					continue
 				}
 
 				select {
@@ -197,6 +197,10 @@ func (tl *TrackerList) List(ctx context.Context) ([]models.Tracker, error) {
 func (tl *TrackerList) makeUpdates(ctx context.Context, source models.SourceName, updates []models.Tracker) error {
 	const op = "TrackerList.makeUpdates"
 	log := tl.log.With(slog.String("op", op))
+	if len(updates) == 0 {
+		return errors.New("updates slice is empty")
+	}
+
 	log.Info(fmt.Sprintf("Updating source %s", source))
 
 	tl.mu.Lock()
