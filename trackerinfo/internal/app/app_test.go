@@ -96,7 +96,7 @@ func TestApp_LoadAndDisplay(t *testing.T) {
 		os.Remove(storagePath)
 	})
 
-	tp, err := trace.New(false, "", "test")
+	tp, err := trace.New(false)
 	require.NoError(t, err)
 
 	tracer := tp.Tracer("")

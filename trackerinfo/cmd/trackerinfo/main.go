@@ -17,12 +17,16 @@ func main() {
 
 	log := logger.SetLogger(cfg.Env)
 
-	tp, err := trace.New(cfg.Tracing.Enabled, serviceName, cfg.Env)
+	tp, err := trace.New(cfg.Tracing.Enabled,
+		trace.WithServiceName(serviceName),
+		trace.WithDeploymentEnv(cfg.Env),
+		trace.WithOtelGrpcURL(cfg.Tracing.OTLPGrpcURL),
+	)
 	if err != nil {
 		panic(err)
 	}
 
-	tracer := tp.Tracer("")
+	tracer := tp.Tracer("") // using default service name
 
 	ctx, _ := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
@@ -42,5 +46,6 @@ func main() {
 
 	log.Info("Gracefully stopping service")
 	app.Stop()
+	tp.Shutdown(ctx)
 	log.Info("Gracefully stopped")
 }

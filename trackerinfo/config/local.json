@@ -9,6 +9,6 @@
     "fetchers_update_interval": "10m",
     "tracing": {
         "enabled": true,
-        "jaeger_url": ""
+        "otlp_grpc_url": "192.169.1.2:4317"
     }
 }

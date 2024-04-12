@@ -24,8 +24,8 @@ type (
 	}
 
 	TracingConfig struct {
-		Enabled   bool   `json:"enabled" env-default:"false"`
-		JaegerUrl string `json:"jaeger_url"`
+		Enabled     bool   `json:"enabled" env-default:"false"`
+		OTLPGrpcURL string `json:"otlp_grpc_url"`
 	}
 
 	Duration struct {

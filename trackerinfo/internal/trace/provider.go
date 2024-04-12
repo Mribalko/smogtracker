@@ -1,37 +1,96 @@
 package trace
 
 import (
+	"context"
+	"errors"
+
 	"go.opentelemetry.io/otel"
-	stdout "go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
-	"go.opentelemetry.io/otel/trace"
-	"go.opentelemetry.io/otel/trace/noop"
 )
 
-func New(enabled bool, serviceName, deploymentEnv string) (trace.TracerProvider, error) {
-	if !enabled {
-		return noop.NewTracerProvider(), nil
+type (
+	traceOptions struct {
+		attrs       []attribute.KeyValue
+		otelGrpcURL string
+	}
+	Option func(*traceOptions) error
+)
+
+func New(enabled bool, options ...Option) (*sdktrace.TracerProvider, error) {
+
+	tops := &traceOptions{}
+	for _, opt := range options {
+		if err := opt(tops); err != nil {
+			return nil, err
+		}
 	}
 
-	exporter, err := stdout.New(stdout.WithPrettyPrint())
+	var (
+		exporter sdktrace.SpanExporter
+		err      error
+	)
+	if len(tops.otelGrpcURL) != 0 {
+		exporter, err = otlptracegrpc.New(context.Background(),
+			otlptracegrpc.WithEndpoint(tops.otelGrpcURL),
+			otlptracegrpc.WithInsecure(),
+		)
+	} else {
+		exporter, err = stdouttrace.New(stdouttrace.WithPrettyPrint())
+	}
 	if err != nil {
 		return nil, err
 	}
+
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithSampler(sdktrace.AlwaysSample()),
 		sdktrace.WithBatcher(exporter),
 		sdktrace.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceNameKey.String(serviceName),
-			semconv.DeploymentEnvironmentKey.String(deploymentEnv),
+			tops.attrs...,
 		)),
 	)
+	if !enabled {
+		tp.Shutdown(context.Background())
+	}
 
 	otel.SetTracerProvider(tp)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 	return tp, nil
 
+}
+
+func WithServiceName(serviceName string) Option {
+	return func(tops *traceOptions) error {
+		if len(serviceName) == 0 {
+			return errors.New("service name is empty")
+		}
+		tops.attrs = append(tops.attrs, semconv.ServiceNameKey.String(serviceName))
+		return nil
+	}
+}
+
+func WithDeploymentEnv(deploymentEnv string) Option {
+	return func(tops *traceOptions) error {
+		if len(deploymentEnv) == 0 {
+			return errors.New("deploymentEnv is empty")
+		}
+		tops.attrs = append(tops.attrs, semconv.DeploymentEnvironmentKey.String(deploymentEnv))
+		return nil
+	}
+}
+
+func WithOtelGrpcURL(otelGrpcURL string) Option {
+	return func(tops *traceOptions) error {
+		if len(otelGrpcURL) == 0 {
+			return errors.New("otelGrpcURL is empty")
+		}
+		tops.otelGrpcURL = otelGrpcURL
+		return nil
+	}
 }
