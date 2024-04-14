@@ -34,7 +34,6 @@ func (f RoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func TestApp_LoadAndDisplay(t *testing.T) {
 
-	// fake default transport
 	const (
 		respJSON = `{
 		"stations": [
@@ -65,6 +64,7 @@ func TestApp_LoadAndDisplay(t *testing.T) {
 	)
 
 	ctx := context.Background()
+	// fake default transport
 	http.DefaultTransport = RoundTripFunc(func(req *http.Request) *http.Response {
 		var body io.ReadCloser
 
@@ -96,7 +96,7 @@ func TestApp_LoadAndDisplay(t *testing.T) {
 		os.Remove(storagePath)
 	})
 
-	tp, err := trace.New(false)
+	tp, err := trace.New(ctx, false)
 	require.NoError(t, err)
 
 	tracer := tp.Tracer("")

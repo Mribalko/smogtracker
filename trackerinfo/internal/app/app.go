@@ -30,7 +30,7 @@ func New(ctx context.Context,
 	storagePath string,
 ) (*App, error) {
 	const op = "app.New"
-	storage, err := sqlite.New(storagePath)
+	storage, err := sqlite.New(tracer, sqlite.WithStoragePath(storagePath))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}

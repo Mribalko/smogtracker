@@ -12,6 +12,7 @@ import (
 	sl "github.com/MRibalko/smogtracker/trackerinfo/internal/logger"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/models"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -103,6 +104,7 @@ func (tl *TrackerList) RegisterSource(source Fetcher) error {
 // Starts repeatable update of registered fetchers
 func (tl *TrackerList) StartUpdate(ctx context.Context) {
 	const op = "TrackerList.StartUpdate"
+
 	log := tl.log.With(slog.String("op", op))
 	log.Info("Trackers update started")
 
@@ -159,11 +161,13 @@ func (tl *TrackerList) StopUpdate() {
 // Returns the list of added data sources
 func (tl *TrackerList) Sources(ctx context.Context) ([]string, error) {
 	const op = "TrackerList.Sources"
-	if len(tl.sources) == 0 {
-		return nil, fmt.Errorf("%s: no sources", op)
-	}
 	_, span := tl.tracer.Start(ctx, op)
 	defer span.End()
+
+	if len(tl.sources) == 0 {
+		span.SetStatus(codes.Error, "no sources")
+		return nil, fmt.Errorf("%s: no sources", op)
+	}
 
 	var sources []string
 
@@ -178,7 +182,11 @@ func (tl *TrackerList) Sources(ctx context.Context) ([]string, error) {
 // Return the list of tracker Ids from the source
 func (tl *TrackerList) IdsBySource(ctx context.Context, source string) ([]string, error) {
 	const op = "TrackerList.IdsBySource"
+	ctx, span := tl.tracer.Start(ctx, op)
+	defer span.End()
+
 	if len(source) == 0 {
+		span.SetStatus(codes.Error, "source string is empty")
 		return nil, fmt.Errorf("%s: source string is empty", op)
 	}
 
@@ -187,17 +195,24 @@ func (tl *TrackerList) IdsBySource(ctx context.Context, source string) ([]string
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
+	span.SetAttributes(attribute.Int("ids returned", len(ids)))
+
 	return ids, nil
 }
 
 // Returns the list of trackers from all added sources
 func (tl *TrackerList) List(ctx context.Context) ([]models.Tracker, error) {
 	const op = "TrackerList.List"
+	ctx, span := tl.tracer.Start(ctx, op)
+	defer span.End()
 
 	list, err := tl.storage.Trackers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
+
+	span.SetAttributes(attribute.Int("trackers returned", len(list)))
+
 	return list, nil
 }
 

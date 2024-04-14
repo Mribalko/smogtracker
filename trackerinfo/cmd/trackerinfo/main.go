@@ -17,7 +17,12 @@ func main() {
 
 	log := logger.SetLogger(cfg.Env)
 
-	tp, err := trace.New(cfg.Tracing.Enabled,
+	ctx, _ := signal.NotifyContext(context.Background(),
+		syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	tp, err := trace.New(
+		ctx,
+		cfg.Tracing.Enabled,
 		trace.WithServiceName(serviceName),
 		trace.WithDeploymentEnv(cfg.Env),
 		trace.WithOtelGrpcURL(cfg.Tracing.OTLPGrpcURL),
@@ -27,9 +32,6 @@ func main() {
 	}
 
 	tracer := tp.Tracer("") // using default service name
-
-	ctx, _ := signal.NotifyContext(context.Background(),
-		syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	app, err := app.New(ctx, log, tracer,
 		cfg.HttpTimeout.Duration,

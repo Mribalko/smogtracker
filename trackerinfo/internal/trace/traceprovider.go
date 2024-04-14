@@ -22,7 +22,7 @@ type (
 	Option func(*traceOptions) error
 )
 
-func New(enabled bool, options ...Option) (*sdktrace.TracerProvider, error) {
+func New(ctx context.Context, enabled bool, options ...Option) (*sdktrace.TracerProvider, error) {
 
 	tops := &traceOptions{}
 	for _, opt := range options {
@@ -36,7 +36,8 @@ func New(enabled bool, options ...Option) (*sdktrace.TracerProvider, error) {
 		err      error
 	)
 	if len(tops.otelGrpcURL) != 0 {
-		exporter, err = otlptracegrpc.New(context.Background(),
+		exporter, err = otlptracegrpc.New(
+			ctx,
 			otlptracegrpc.WithEndpoint(tops.otelGrpcURL),
 			otlptracegrpc.WithInsecure(),
 		)
@@ -56,7 +57,7 @@ func New(enabled bool, options ...Option) (*sdktrace.TracerProvider, error) {
 		)),
 	)
 	if !enabled {
-		tp.Shutdown(context.Background())
+		tp.Shutdown(ctx)
 	}
 
 	otel.SetTracerProvider(tp)

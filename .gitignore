@@ -1,3 +1,4 @@
 /.DS_Store
 trackerinfo/storage/trackerinfo.db
 .vscode/launch.json
+trackerinfo/internal/.DS_Store

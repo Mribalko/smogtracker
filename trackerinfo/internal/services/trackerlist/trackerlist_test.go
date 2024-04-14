@@ -278,7 +278,7 @@ func TestTrackerList_Update(t *testing.T) {
 
 func newTrackerListWithStorage(t *testing.T, storage trackerlist.Storage) (*trackerlist.TrackerList, error) {
 	t.Helper()
-	tp, err := trace.New(false)
+	tp, err := trace.New(context.Background(), false)
 	if err != nil {
 		return nil, err
 	}

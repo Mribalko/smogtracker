@@ -9,6 +9,7 @@ import (
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/models"
 	errStorage "github.com/MRibalko/smogtracker/trackerinfo/internal/storage"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/storage/sqlite"
+	"github.com/MRibalko/smogtracker/trackerinfo/internal/trace"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -37,10 +38,13 @@ func TestSqlite(t *testing.T) {
 		m.Down()
 	})
 
-	storage := sqlite.NewWithDatabaseInstance(db)
+	ctx := context.Background()
+
+	tp, err := trace.New(ctx, false)
 	require.NoError(t, err)
 
-	ctx := context.Background()
+	storage, err := sqlite.New(tp.Tracer(""), sqlite.WithDatabaseInstance(db))
+	require.NoError(t, err)
 
 	testTracker := models.Tracker{
 		OrigId:      "1",
