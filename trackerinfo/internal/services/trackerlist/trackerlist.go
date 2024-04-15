@@ -13,6 +13,7 @@ import (
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/models"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -35,6 +36,7 @@ type (
 	TrackerList struct {
 		log     *slog.Logger
 		tracer  trace.Tracer
+		metrics *instruments
 		storage Storage
 		sources map[models.SourceName]Fetcher
 		mu      sync.Mutex
@@ -42,13 +44,24 @@ type (
 		cancel  context.CancelFunc
 		running bool
 	}
+
+	instruments struct {
+		writeDbRequests metric.Int64Counter
+		cacheRequests   metric.Int64Counter
+	}
 )
 
-func New(logger *slog.Logger, tracer trace.Tracer, storage Storage) (*TrackerList, error) {
+func New(logger *slog.Logger, tracer trace.Tracer, meter metric.Meter, storage Storage) (*TrackerList, error) {
+
+	metrics, err := newInstruments(meter)
+	if err != nil {
+		return nil, err
+	}
 
 	tl := &TrackerList{
 		log:     logger,
 		tracer:  tracer,
+		metrics: metrics,
 		storage: storage,
 		sources: make(map[models.SourceName]Fetcher),
 		hashes:  make(map[models.SourceName]map[models.Id]models.Hash),
@@ -234,9 +247,14 @@ func (tl *TrackerList) makeUpdates(ctx context.Context, source models.SourceName
 	updHashes := make(map[models.Id]models.Hash)
 
 	for _, tr := range updates {
+
+		tl.metrics.cacheRequests.Add(ctx, 1)
+
 		trHash, exist := hashes[tr.Id()]
 
 		if !exist {
+			tl.metrics.writeDbRequests.Add(ctx, 1)
+
 			err := tl.storage.Insert(ctx, tr)
 			if err != nil {
 				log.Error("tracker insertion failed", slog.String("SourceId", string(tr.Id())), sl.Err(err))
@@ -245,6 +263,8 @@ func (tl *TrackerList) makeUpdates(ctx context.Context, source models.SourceName
 		}
 
 		if exist && strings.Compare(string(trHash), string(tr.Hash())) != 0 {
+			tl.metrics.writeDbRequests.Add(ctx, 1)
+
 			err := tl.storage.Update(ctx, tr)
 			if err != nil {
 				log.Error("tracker update failed", slog.String("Id", string(tr.Id())), sl.Err(err))
@@ -269,4 +289,26 @@ func (tl *TrackerList) makeUpdates(ctx context.Context, source models.SourceName
 
 	log.Info("trackers updated")
 	return nil
+}
+
+func newInstruments(meter metric.Meter) (*instruments, error) {
+	writeDbRequests, err := meter.Int64Counter("writeDbRequests",
+		metric.WithDescription("Number of write requests to db"),
+		metric.WithUnit("{hit}"))
+	if err != nil {
+		return nil, err
+	}
+
+	cacheRequests, err := meter.Int64Counter("cacheRequests",
+		metric.WithDescription("Number of requests to cache"),
+		metric.WithUnit("{request}"))
+	if err != nil {
+		return nil, err
+	}
+
+	return &instruments{
+		writeDbRequests: writeDbRequests,
+		cacheRequests:   cacheRequests,
+	}, nil
+
 }

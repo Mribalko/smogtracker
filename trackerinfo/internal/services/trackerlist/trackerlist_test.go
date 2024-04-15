@@ -11,6 +11,7 @@ import (
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/trace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
 )
 
 type testStorage struct {
@@ -284,6 +285,6 @@ func newTrackerListWithStorage(t *testing.T, storage trackerlist.Storage) (*trac
 	}
 
 	tracer := tp.Tracer("")
-	return trackerlist.New(slogdiscard.NewDiscardLogger(), tracer, storage)
+	return trackerlist.New(slogdiscard.NewDiscardLogger(), tracer, otel.Meter("test"), storage)
 
 }

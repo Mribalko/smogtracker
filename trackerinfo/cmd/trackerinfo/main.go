@@ -8,11 +8,17 @@ import (
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/app"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/config"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/logger"
+	"github.com/MRibalko/smogtracker/trackerinfo/internal/metric"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/trace"
 )
 
+var (
+	serviceName    = "smog/trackerinfo"
+	serviceVersion = "0.2.0"
+)
+
 func main() {
-	const serviceName = "smog/trackerinfo"
+
 	cfg := config.MustLoad()
 
 	log := logger.SetLogger(cfg.Env)
@@ -20,10 +26,11 @@ func main() {
 	ctx, _ := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	tp, err := trace.New(
+	tracerProvider, err := trace.New(
 		ctx,
 		cfg.Tracing.Enabled,
 		trace.WithServiceName(serviceName),
+		trace.WithServiceVersion(serviceVersion),
 		trace.WithDeploymentEnv(cfg.Env),
 		trace.WithOtelGrpcURL(cfg.Tracing.OTLPGrpcURL),
 	)
@@ -31,9 +38,18 @@ func main() {
 		panic(err)
 	}
 
-	tracer := tp.Tracer("") // using default service name
+	tracer := tracerProvider.Tracer("") // using default service name
 
-	app, err := app.New(ctx, log, tracer,
+	meterProvider, err := metric.New(ctx,
+		true,
+		metric.WithServiceName(serviceName),
+		metric.WithServiceVersion(serviceVersion),
+		metric.WithDeploymentEnv(cfg.Env),
+	)
+
+	meter := meterProvider.Meter(serviceName)
+
+	app, err := app.New(ctx, log, tracer, meter,
 		cfg.HttpTimeout.Duration,
 		cfg.FetchersUpdateInterval.Duration,
 		cfg.GRPC.Port,
@@ -48,6 +64,7 @@ func main() {
 
 	log.Info("Gracefully stopping service")
 	app.Stop()
-	tp.Shutdown(ctx)
+	tracerProvider.Shutdown(ctx)
+	meterProvider.Shutdown(ctx)
 	log.Info("Gracefully stopped")
 }

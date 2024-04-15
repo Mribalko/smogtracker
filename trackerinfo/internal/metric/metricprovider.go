@@ -1,28 +1,26 @@
-package trace
+package metric
 
 import (
 	"context"
 	"errors"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
-	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 )
 
 type (
 	traceOptions struct {
-		attrs       []attribute.KeyValue
-		otelGrpcURL string
+		attrs []attribute.KeyValue
 	}
 	Option func(*traceOptions) error
 )
 
-func New(ctx context.Context, enabled bool, options ...Option) (*sdktrace.TracerProvider, error) {
+func New(ctx context.Context, enabled bool, options ...Option) (*sdkmetric.MeterProvider, error) {
 
 	tops := &traceOptions{}
 	for _, opt := range options {
@@ -31,39 +29,26 @@ func New(ctx context.Context, enabled bool, options ...Option) (*sdktrace.Tracer
 		}
 	}
 
-	var (
-		exporter sdktrace.SpanExporter
-		err      error
-	)
-	if len(tops.otelGrpcURL) != 0 {
-		exporter, err = otlptracegrpc.New(
-			ctx,
-			otlptracegrpc.WithEndpoint(tops.otelGrpcURL),
-			otlptracegrpc.WithInsecure(),
-		)
-	} else {
-		exporter, err = stdouttrace.New(stdouttrace.WithPrettyPrint())
-	}
+	metricExporter, err := stdoutmetric.New(stdoutmetric.WithPrettyPrint())
 	if err != nil {
 		return nil, err
 	}
 
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-		sdktrace.WithBatcher(exporter),
-		sdktrace.WithResource(resource.NewWithAttributes(
+	mp := sdkmetric.NewMeterProvider(
+		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter,
+			sdkmetric.WithTimeout(3*time.Second))),
+		sdkmetric.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
 			tops.attrs...,
 		)),
 	)
+
 	if !enabled {
-		tp.Shutdown(ctx)
+		mp.Shutdown(ctx)
 	}
 
-	otel.SetTracerProvider(tp)
-	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
-	return tp, nil
-
+	otel.SetMeterProvider(mp)
+	return mp, nil
 }
 
 func WithServiceName(serviceName string) Option {
@@ -72,6 +57,7 @@ func WithServiceName(serviceName string) Option {
 			return errors.New("service name is empty")
 		}
 		tops.attrs = append(tops.attrs, semconv.ServiceNameKey.String(serviceName))
+
 		return nil
 	}
 }
@@ -92,16 +78,6 @@ func WithDeploymentEnv(deploymentEnv string) Option {
 			return errors.New("deploymentEnv is empty")
 		}
 		tops.attrs = append(tops.attrs, semconv.DeploymentEnvironmentKey.String(deploymentEnv))
-		return nil
-	}
-}
-
-func WithOtelGrpcURL(otelGrpcURL string) Option {
-	return func(tops *traceOptions) error {
-		if len(otelGrpcURL) == 0 {
-			return errors.New("otelGrpcURL is empty")
-		}
-		tops.otelGrpcURL = otelGrpcURL
 		return nil
 	}
 }

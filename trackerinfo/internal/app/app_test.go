@@ -22,6 +22,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -100,11 +101,13 @@ func TestApp_LoadAndDisplay(t *testing.T) {
 	require.NoError(t, err)
 
 	tracer := tp.Tracer("")
+	otel.Meter("test")
 
 	// create and start test app
 	app, err := app.New(ctx,
 		slogdiscard.NewDiscardLogger(),
 		tracer,
+		otel.Meter("test"),
 		10*time.Second,
 		10*time.Minute,
 		grpcPort,
@@ -114,8 +117,8 @@ func TestApp_LoadAndDisplay(t *testing.T) {
 	app.Start()
 
 	// create grpc client
-	conn, err := grpc.DialContext(
-		ctx, fmt.Sprintf("localhost:%d", grpcPort),
+	conn, err := grpc.NewClient(
+		fmt.Sprintf("localhost:%d", grpcPort),
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	require.NoError(t, err)
