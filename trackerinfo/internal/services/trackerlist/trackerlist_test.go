@@ -8,7 +8,6 @@ import (
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/logger/slogdiscard"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/models"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/services/trackerlist"
-	"github.com/MRibalko/smogtracker/trackerinfo/internal/trace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
@@ -279,12 +278,6 @@ func TestTrackerList_Update(t *testing.T) {
 
 func newTrackerListWithStorage(t *testing.T, storage trackerlist.Storage) (*trackerlist.TrackerList, error) {
 	t.Helper()
-	tp, err := trace.New(context.Background(), false)
-	if err != nil {
-		return nil, err
-	}
-
-	tracer := tp.Tracer("")
-	return trackerlist.New(slogdiscard.NewDiscardLogger(), tracer, otel.Meter("test"), storage)
+	return trackerlist.New(slogdiscard.NewDiscardLogger(), otel.Tracer("test"), otel.Meter("test"), storage)
 
 }

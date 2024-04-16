@@ -3,11 +3,10 @@ package metric
 import (
 	"context"
 	"errors"
-	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
+	"go.opentelemetry.io/otel/exporters/prometheus"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
@@ -20,35 +19,37 @@ type (
 	Option func(*traceOptions) error
 )
 
-func New(ctx context.Context, enabled bool, options ...Option) (*sdkmetric.MeterProvider, error) {
+// Initialises OTEL metrics, registers global MeterProvider
+func Init(ctx context.Context, options ...Option) error {
 
 	tops := &traceOptions{}
 	for _, opt := range options {
 		if err := opt(tops); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	metricExporter, err := stdoutmetric.New(stdoutmetric.WithPrettyPrint())
+	metricExporter, err := prometheus.New()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	mp := sdkmetric.NewMeterProvider(
-		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter,
-			sdkmetric.WithTimeout(3*time.Second))),
+		sdkmetric.WithReader(metricExporter),
 		sdkmetric.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
 			tops.attrs...,
 		)),
 	)
 
-	if !enabled {
-		mp.Shutdown(ctx)
-	}
-
 	otel.SetMeterProvider(mp)
-	return mp, nil
+
+	go func() {
+		<-ctx.Done()
+		mp.Shutdown(ctx)
+	}()
+
+	return nil
 }
 
 func WithServiceName(serviceName string) Option {

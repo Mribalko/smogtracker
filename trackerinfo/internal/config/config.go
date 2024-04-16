@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"time"
 
@@ -10,38 +11,32 @@ import (
 
 type (
 	Config struct {
-		Env                    string        `json:"env" env-default:"local"`
-		StoragePath            string        `json:"storage_path" env-required:"true"`
-		HttpTimeout            Duration      `json:"http_timeout" env-default:"1s"`
-		GRPC                   GRPCConfig    `json:"grpc"`
-		Tracing                TracingConfig `json:"tracing"`
-		FetchersUpdateInterval Duration      `json:"fetchers_update_interval" env-default:"10m"`
-	}
-
-	GRPCConfig struct {
-		Port    int      `json:"port" env-required:"true"`
-		Timeout Duration `json:"timeout" env-default:"5s"`
-	}
-
-	TracingConfig struct {
-		Enabled     bool   `json:"enabled" env-default:"false"`
-		OTLPGrpcURL string `json:"otlp_grpc_url"`
-	}
-
-	Duration struct {
-		time.Duration
+		Env     string `yaml:"env" env-default:"local"`
+		Storage struct {
+			Path string `yaml:"path" env-required:"true"`
+		} `yaml:"storage"`
+		GRPCServer struct {
+			Port    int           `yaml:"port" env:"GRPC_SERVER_PORT" env-required:"true"`
+			Timeout time.Duration `yaml:"timeout" env-default:"5s"`
+		} `yaml:"grpc_server"`
+		HTTPClient struct {
+			Timeout time.Duration `yaml:"timeout" env-default:"10s"`
+		} `yaml:"http_client"`
+		Fetchers struct {
+			UpdateInterval time.Duration `yaml:"update_interval" env-default:"10m"`
+		} `yaml:"fetchers"`
+		Tracing struct {
+			Enabled     bool   `yaml:"enabled" env-default:"false"`
+			OTLPGrpcURL string `yaml:"otlp_grpc_url" env:"OTLP_GRPC_URL"`
+		} `yaml:"tracing"`
+		Metrics struct {
+			Enabled    bool `yaml:"enabled" env-default:"false"`
+			HTTPServer struct {
+				Port int `yaml:"port" env:"METRICS_HTTP_SERVER_PORT" env-default:"9090"`
+			} `yaml:"http_server"`
+		} `yaml:"metrics"`
 	}
 )
-
-func (d *Duration) UnmarshalJSON(b []byte) (err error) {
-
-	sd := string(b[1 : len(b)-1])
-	d.Duration, err = time.ParseDuration(sd)
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 // gets config path from a command line flag, then from an env variable CONFIG_PATH
 // then tries to load the config file
@@ -56,7 +51,7 @@ func MustLoad() *Config {
 	var config Config
 
 	if err := cleanenv.ReadConfig(path, &config); err != nil {
-		panic("config loading failed: " + err.Error())
+		panic(fmt.Sprintf("config loading failed %v", err))
 	}
 
 	return &config

@@ -1,0 +1,17 @@
+env: local
+storage:
+  path: ./storage/trackerinfo.db
+grpc_server:
+  port: 44044
+  timeout: 5s
+http_client:
+  timeout: 10s
+fetchers:
+  update_interval: 10m
+tracing:
+  enabled: true
+  otlp_grpc_url: localhost:4317
+metrics:
+  enabled: true
+  http_server:
+    port: 9090

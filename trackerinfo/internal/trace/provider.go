@@ -22,12 +22,14 @@ type (
 	Option func(*traceOptions) error
 )
 
-func New(ctx context.Context, enabled bool, options ...Option) (*sdktrace.TracerProvider, error) {
+// Initialises OTEL tracing, registers global TraceProvider,
+// schedules gracefull shutdown of Tracing on context cancelling
+func Init(ctx context.Context, options ...Option) error {
 
 	tops := &traceOptions{}
 	for _, opt := range options {
 		if err := opt(tops); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
@@ -45,7 +47,7 @@ func New(ctx context.Context, enabled bool, options ...Option) (*sdktrace.Tracer
 		exporter, err = stdouttrace.New(stdouttrace.WithPrettyPrint())
 	}
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	tp := sdktrace.NewTracerProvider(
@@ -56,13 +58,16 @@ func New(ctx context.Context, enabled bool, options ...Option) (*sdktrace.Tracer
 			tops.attrs...,
 		)),
 	)
-	if !enabled {
-		tp.Shutdown(ctx)
-	}
 
 	otel.SetTracerProvider(tp)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
-	return tp, nil
+
+	go func() {
+		<-ctx.Done()
+		tp.Shutdown(ctx)
+	}()
+
+	return nil
 
 }
 

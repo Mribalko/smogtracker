@@ -9,12 +9,12 @@ import (
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/models"
 	errStorage "github.com/MRibalko/smogtracker/trackerinfo/internal/storage"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/storage/sqlite"
-	"github.com/MRibalko/smogtracker/trackerinfo/internal/trace"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
 )
 
 func TestSqlite(t *testing.T) {
@@ -40,10 +40,7 @@ func TestSqlite(t *testing.T) {
 
 	ctx := context.Background()
 
-	tp, err := trace.New(ctx, false)
-	require.NoError(t, err)
-
-	storage, err := sqlite.New(tp.Tracer(""), sqlite.WithDatabaseInstance(db))
+	storage, err := sqlite.New(otel.Tracer(""), sqlite.WithDatabaseInstance(db))
 	require.NoError(t, err)
 
 	testTracker := models.Tracker{
