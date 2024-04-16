@@ -20,18 +20,18 @@ type (
 )
 
 // Initialises OTEL metrics, registers global MeterProvider
-func Init(ctx context.Context, options ...Option) error {
+func New(ctx context.Context, options ...Option) (*sdkmetric.MeterProvider, error) {
 
 	tops := &traceOptions{}
 	for _, opt := range options {
 		if err := opt(tops); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	metricExporter, err := prometheus.New()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	mp := sdkmetric.NewMeterProvider(
@@ -49,7 +49,7 @@ func Init(ctx context.Context, options ...Option) error {
 		mp.Shutdown(ctx)
 	}()
 
-	return nil
+	return mp, nil
 }
 
 func WithServiceName(serviceName string) Option {

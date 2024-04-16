@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/signal"
+	"reflect"
 	"syscall"
 
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/app"
@@ -19,6 +20,10 @@ var (
 	serviceVersion = "0.2.0"
 )
 
+type shutdown interface {
+	Shutdown(context.Context) error
+}
+
 func main() {
 
 	cfg := config.MustLoad()
@@ -28,8 +33,16 @@ func main() {
 	ctx, _ := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
+	var shutdownList []shutdown
+	defer func() {
+		for _, item := range shutdownList {
+			log.Info("stopping: " + reflect.TypeOf(item).String())
+			item.Shutdown(ctx)
+		}
+	}()
+
 	if cfg.Tracing.Enabled {
-		err := trace.Init(
+		tp, err := trace.New(
 			ctx,
 			trace.WithServiceName(serviceName),
 			trace.WithServiceVersion(serviceVersion),
@@ -39,12 +52,13 @@ func main() {
 		if err != nil {
 			panic(fmt.Errorf("trace init failed %v", err))
 		}
+		shutdownList = append(shutdownList, tp)
 	}
 	// if trace.Init wasn't called before, global tracing provider returns noop instance
 	tracer := otel.GetTracerProvider().Tracer("") // using default service name
 
 	if cfg.Metrics.Enabled {
-		err := metric.Init(ctx,
+		mp, err := metric.New(ctx,
 			metric.WithServiceName(serviceName),
 			metric.WithServiceVersion(serviceVersion),
 			metric.WithDeploymentEnv(cfg.Env),
@@ -52,11 +66,11 @@ func main() {
 		if err != nil {
 			panic(fmt.Errorf("metrics init failed %v", err))
 		}
+		shutdownList = append(shutdownList, mp)
 
-		err = metric.StartServer(ctx, log, cfg.Metrics.HTTPServer.Port)
-		if err != nil {
-			panic(fmt.Errorf("metrics server start failed %v", err))
-		}
+		metricsServer := metric.MustStartServer(ctx, log, cfg.Metrics.HTTPServer.Port)
+		shutdownList = append(shutdownList, metricsServer)
+
 	}
 	// if metric.Init wasn't called before, global meter provider returns noop instance
 	meter := otel.GetMeterProvider().Meter(serviceName)
