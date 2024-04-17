@@ -7,11 +7,11 @@ import (
 	"reflect"
 	"syscall"
 
+	"github.com/MRibalko/smogtracker/pkg/logger"
+	"github.com/MRibalko/smogtracker/pkg/metric"
+	"github.com/MRibalko/smogtracker/pkg/trace"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/app"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/config"
-	"github.com/MRibalko/smogtracker/trackerinfo/internal/logger"
-	"github.com/MRibalko/smogtracker/trackerinfo/internal/metric"
-	"github.com/MRibalko/smogtracker/trackerinfo/internal/trace"
 	"go.opentelemetry.io/otel"
 )
 

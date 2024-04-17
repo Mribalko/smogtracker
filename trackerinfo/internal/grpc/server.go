@@ -3,7 +3,7 @@ package trackerinfogrpc
 import (
 	"context"
 
-	trackerinfov1 "github.com/MRibalko/smogtracker/protos/gen/go"
+	"github.com/MRibalko/smogtracker/protos/gen/trackerinfov1"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/models"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

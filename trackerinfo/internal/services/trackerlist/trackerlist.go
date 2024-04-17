@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	sl "github.com/MRibalko/smogtracker/trackerinfo/internal/logger"
+	sl "github.com/MRibalko/smogtracker/pkg/logger"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/models"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"

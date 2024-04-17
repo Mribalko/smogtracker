@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MRibalko/smogtracker/trackerinfo/internal/logger/slogdiscard"
+	"github.com/MRibalko/smogtracker/pkg/logger/slogdiscard"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/models"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/services/trackerlist"
 	"github.com/stretchr/testify/assert"
