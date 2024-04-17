@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os/signal"
-	"reflect"
 	"syscall"
 
 	"github.com/MRibalko/smogtracker/pkg/logger"
 	"github.com/MRibalko/smogtracker/pkg/metric"
+	"github.com/MRibalko/smogtracker/pkg/shutdownlist"
 	"github.com/MRibalko/smogtracker/pkg/trace"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/app"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/config"
@@ -20,10 +20,6 @@ var (
 	serviceVersion = "0.2.0"
 )
 
-type shutdown interface {
-	Shutdown(context.Context) error
-}
-
 func main() {
 
 	cfg := config.MustLoad()
@@ -33,13 +29,7 @@ func main() {
 	ctx, _ := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	var shutdownList []shutdown
-	defer func() {
-		for _, item := range shutdownList {
-			log.Info("stopping: " + reflect.TypeOf(item).String())
-			item.Shutdown(ctx)
-		}
-	}()
+	shutdownList := shutdownlist.New(log)
 
 	if cfg.Tracing.Enabled {
 		tp, err := trace.New(
@@ -52,7 +42,7 @@ func main() {
 		if err != nil {
 			panic(fmt.Errorf("trace init failed %v", err))
 		}
-		shutdownList = append(shutdownList, tp)
+		shutdownList.Add(tp)
 	}
 	// if trace.Init wasn't called before, global tracing provider returns noop instance
 	tracer := otel.GetTracerProvider().Tracer("") // using default service name
@@ -66,10 +56,10 @@ func main() {
 		if err != nil {
 			panic(fmt.Errorf("metrics init failed %v", err))
 		}
-		shutdownList = append(shutdownList, mp)
+		shutdownList.Add(mp)
 
 		metricsServer := metric.MustStartServer(ctx, log, cfg.Metrics.HTTPServer.Port)
-		shutdownList = append(shutdownList, metricsServer)
+		shutdownList.Add(metricsServer)
 
 	}
 	// if metric.Init wasn't called before, global meter provider returns noop instance
@@ -83,12 +73,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
+	shutdownList.Add(app)
 	app.Start()
 
 	<-ctx.Done()
 
 	log.Info("Gracefully stopping service")
-	app.Stop()
-	log.Info("Gracefully stopped")
+	shutdownList.Shutdown(ctx)
+	log.Info("Gracefully stopped service")
 }

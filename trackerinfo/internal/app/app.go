@@ -63,12 +63,13 @@ func New(ctx context.Context,
 func (a *App) Start() {
 	a.service.StartUpdate(a.ctx)
 	go a.gRPCApp.MustStart()
-	a.log.Info("Application started")
+	a.log.Info("application started")
 
 }
 
-func (a *App) Stop() {
+func (a *App) Shutdown(ctx context.Context) error {
 	a.service.StopUpdate()
 	a.gRPCApp.Stop()
-	a.log.Info("Application stopped")
+	a.log.Info("application stopped")
+	return nil
 }
