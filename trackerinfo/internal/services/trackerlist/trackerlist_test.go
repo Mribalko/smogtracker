@@ -41,6 +41,10 @@ func (ts *testStorage) Trackers(ctx context.Context) ([]models.Tracker, error) {
 	return ts.trackers, nil
 }
 
+func (ts *testStorage) ModifiedTrackers(ctx context.Context, from time.Time) ([]models.Tracker, error) {
+	return ts.trackers, nil
+}
+
 func (ts *testStorage) Sources(ctx context.Context) ([]string, error) {
 	return ts.sources, nil
 }

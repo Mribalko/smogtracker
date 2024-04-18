@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/models"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/storage"
@@ -170,6 +171,48 @@ func (s *Storage) Trackers(ctx context.Context) ([]models.Tracker, error) {
 	}
 
 	rows, err := stmt.QueryContext(ctx)
+	if err != nil {
+		span.SetStatus(codes.Error, "db error")
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res []models.Tracker
+
+	for rows.Next() {
+		tr := models.Tracker{}
+		err := rows.Scan(&tr.OrigId, &tr.Source, &tr.Description, &tr.Latitude, &tr.Longitude)
+		if err != nil {
+			span.SetStatus(codes.Error, "db error")
+			return nil, err
+		}
+		res = append(res, tr)
+	}
+
+	span.SetAttributes(attribute.Int("trackers returned", len(res)))
+
+	return res, nil
+}
+
+func (s *Storage) ModifiedTrackers(ctx context.Context, modifiedFrom time.Time) ([]models.Tracker, error) {
+	const op = "sqlite.ModifiedTrackers"
+	ctx, span := s.tracer.Start(ctx, op)
+	defer span.End()
+
+	if modifiedFrom.IsZero() {
+		span.SetStatus(codes.Error, "modifiedFrom argument is zero")
+		return nil, errors.New("modifiedFrom argument is zero")
+	}
+
+	stmt, err := s.db.Prepare(`SELECT orig_id, source, description, latitude, longitude
+								FROM trackers
+								WHERE modifiedAt >= datetime(?, 'unixepoch')`)
+	if err != nil {
+		span.SetStatus(codes.Error, "db error")
+		return nil, err
+	}
+
+	rows, err := stmt.QueryContext(ctx, modifiedFrom.Unix())
 	if err != nil {
 		span.SetStatus(codes.Error, "db error")
 		return nil, err

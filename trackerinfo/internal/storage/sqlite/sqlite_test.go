@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/models"
 	errStorage "github.com/MRibalko/smogtracker/trackerinfo/internal/storage"
@@ -94,6 +95,29 @@ func TestSqlite(t *testing.T) {
 		require.Empty(t, res)
 		require.NoError(t, err)
 
+	})
+
+	t.Run("ModifiedTrackers", func(t *testing.T) {
+		err := storage.Insert(ctx, testTracker)
+		require.NoError(t, err)
+
+		testTracker1 := testTracker
+		testTracker1.OrigId = "2"
+
+		err = storage.Insert(ctx, testTracker1)
+		require.NoError(t, err)
+
+		testTracker1.Description = "new description"
+		time.Sleep(1 * time.Second)
+		now := time.Now()
+		err = storage.Update(ctx, testTracker1)
+		require.NoError(t, err)
+
+		res, err := storage.ModifiedTrackers(ctx, now)
+		require.NoError(t, err)
+		require.NotEmpty(t, res)
+
+		require.Equal(t, testTracker1, res[0])
 	})
 
 	t.Run("Sources", func(t *testing.T) {

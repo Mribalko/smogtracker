@@ -2,6 +2,7 @@ package trackerinfogrpc
 
 import (
 	"context"
+	"time"
 
 	"github.com/MRibalko/smogtracker/protos/gen/trackerinfov1"
 	"github.com/MRibalko/smogtracker/trackerinfo/internal/models"
@@ -14,6 +15,7 @@ type TrackerInfo interface {
 	Sources(ctx context.Context) ([]string, error)
 	IdsBySource(ctx context.Context, source string) ([]string, error)
 	List(ctx context.Context) ([]models.Tracker, error)
+	ListSince(ctx context.Context, modifiedFrom time.Time) ([]models.Tracker, error)
 }
 
 type serverAPI struct {
@@ -59,10 +61,20 @@ func (s *serverAPI) IdsBySource(
 
 func (s *serverAPI) List(
 	ctx context.Context,
-	in *trackerinfov1.EmptyRequest,
+	in *trackerinfov1.ModifiedFromRequest,
 ) (*trackerinfov1.FullInfoResponse, error) {
 
-	list, err := s.infoService.List(ctx)
+	var (
+		list []models.Tracker
+		err  error
+	)
+
+	if err = in.From.CheckValid(); err != nil {
+		list, err = s.infoService.List(ctx)
+	} else {
+		list, err = s.infoService.ListSince(ctx, in.From.AsTime())
+	}
+
 	if err != nil {
 		return nil, status.Error(codes.Internal, "storage error")
 	}

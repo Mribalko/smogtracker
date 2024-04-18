@@ -24,6 +24,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type RoundTripFunc func(req *http.Request) *http.Response
@@ -57,6 +58,7 @@ func TestApp_LoadAndDisplay(t *testing.T) {
 		  }
 		]
 	  }`
+
 		migrationPath = "../../migrations"
 		storagePath   = "../../storage/testStorage.db"
 		grpcPort      = 44443
@@ -64,6 +66,7 @@ func TestApp_LoadAndDisplay(t *testing.T) {
 	)
 
 	ctx := context.Background()
+
 	// fake default transport
 	http.DefaultTransport = RoundTripFunc(func(req *http.Request) *http.Response {
 		var body io.ReadCloser
@@ -119,8 +122,8 @@ func TestApp_LoadAndDisplay(t *testing.T) {
 	grpcClient := trackerinfov1.NewTrackerInfoClient(conn)
 
 	t.Run("List", func(t *testing.T) {
-		t.Parallel()
-		resp, err := grpcClient.List(ctx, &trackerinfov1.EmptyRequest{})
+
+		resp, err := grpcClient.List(ctx, &trackerinfov1.ModifiedFromRequest{})
 		require.NoError(t, err)
 
 		want := []models.Tracker{
@@ -171,6 +174,42 @@ func TestApp_LoadAndDisplay(t *testing.T) {
 		want := []string{"armaqi"}
 
 		require.Equal(t, want, res.Result)
+	})
+
+	t.Run("List modified items", func(t *testing.T) {
+
+		time.Sleep(1 * time.Second)
+		now := time.Now()
+
+		_, err := db.Exec(`UPDATE trackers
+					SET description = "new"
+					WHERE orig_id = ?`, "76921")
+		require.NoError(t, err)
+
+		resp, err := grpcClient.List(ctx, &trackerinfov1.ModifiedFromRequest{
+			From: timestamppb.New(now)})
+		require.NoError(t, err)
+
+		require.Len(t, resp.Result, 1)
+
+		want := models.Tracker{
+			OrigId:      "76921",
+			Source:      "armaqi",
+			Description: "new",
+			Latitude:    40.182,
+			Longitude:   44.516,
+		}
+
+		got := models.Tracker{
+			OrigId:      resp.Result[0].OrigId,
+			Source:      resp.Result[0].Source,
+			Description: resp.Result[0].Description,
+			Latitude:    resp.Result[0].Latitude,
+			Longitude:   resp.Result[0].Longitude,
+		}
+
+		require.Equal(t, want, got)
+
 	})
 
 }

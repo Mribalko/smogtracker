@@ -23,6 +23,7 @@ type (
 		Update(ctx context.Context, tracker models.Tracker) error
 		Delete(ctx context.Context, id models.Id) error
 		Trackers(ctx context.Context) ([]models.Tracker, error)
+		ModifiedTrackers(ctx context.Context, modifiedFrom time.Time) ([]models.Tracker, error)
 		Sources(ctx context.Context) ([]string, error)
 		IdsBySource(ctx context.Context, source string) ([]string, error)
 	}
@@ -220,6 +221,21 @@ func (tl *TrackerList) List(ctx context.Context) ([]models.Tracker, error) {
 	defer span.End()
 
 	list, err := tl.storage.Trackers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	span.SetAttributes(attribute.Int("trackers returned", len(list)))
+
+	return list, nil
+}
+
+func (tl *TrackerList) ListSince(ctx context.Context, modifiedFrom time.Time) ([]models.Tracker, error) {
+	const op = "TrackerList.ListSince"
+	ctx, span := tl.tracer.Start(ctx, op)
+	defer span.End()
+
+	list, err := tl.storage.ModifiedTrackers(ctx, modifiedFrom)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
